@@ -1,0 +1,293 @@
+/* ============================================================
+   DentaBook — Staff Layout
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   1. SHELL
+------------------------------------------------------------ */
+.staff-shell {
+  min-height: calc(100vh - 72px);
+}
+
+
+/* ------------------------------------------------------------
+   2. SIDEBAR — fixed on desktop
+   ------------------------------------------------------------
+------------------------------------------------------------ */
+.staff-sidebar {
+  position: fixed;
+  top: 72px;
+  left: 0;
+  width: 240px;
+  height: calc(100vh - 72px);
+  overflow-y: auto;
+  background: var(--white);
+  border-right: 1px solid var(--gray-200);
+  padding: var(--space-3) var(--space-2);
+  z-index: 50;
+
+  /* Subtle scrollbar that only appears when needed */
+  scrollbar-width: thin;
+  scrollbar-color: var(--gray-200) transparent;
+}
+
+/* Webkit fallback for the scrollbar */
+.staff-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+.staff-sidebar::-webkit-scrollbar-thumb {
+  background: var(--gray-200);
+  border-radius: 3px;
+}
+
+.staff-sidebar__clinic {
+  padding: 10px 12px;
+  background: var(--purple-50);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--space-3);
+}
+.staff-sidebar__clinic strong {
+  display: block;
+  color: var(--purple-900);
+  font-size: 0.9rem;
+  font-family: var(--font-heading);
+}
+.staff-sidebar__clinic span {
+  font-size: 0.75rem;
+  color: var(--gray-600);
+}
+
+.staff-sidebar__header {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  color: var(--gray-600);
+  letter-spacing: 0.5px;
+  padding: 0 12px;
+  margin: 16px 0 6px;
+  font-weight: 600;
+}
+
+.staff-nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.staff-nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--gray-800);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 2px;
+  transition: background 0.15s, color 0.15s;
+}
+.staff-nav a:hover {
+  background: var(--purple-50);
+  color: var(--purple-900);
+}
+.staff-nav a.is-active {
+  background: var(--purple-100);
+  color: var(--purple-900);
+  font-weight: 600;
+}
+
+
+/* ------------------------------------------------------------
+   3. MAIN AREA — offset for the fixed sidebar
+------------------------------------------------------------ */
+.staff-main {
+  margin-left: 240px;
+  padding: var(--space-3);
+  background: var(--off-white);
+  min-height: calc(100vh - 72px);
+  min-width: 0;
+}
+
+.staff-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.staff-header h1 { font-size: 1.5rem; margin: 0; }
+.staff-header p  {
+  margin: 4px 0 0;
+  color: var(--gray-600);
+  font-size: 0.9rem;
+}
+
+
+/* ------------------------------------------------------------
+   4. STAT CARDS
+------------------------------------------------------------ */
+.staff-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: var(--space-3);
+}
+.staff-stat {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  border-left: 4px solid var(--purple-900);
+}
+.staff-stat__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: var(--gray-600);
+  letter-spacing: 0.4px;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.staff-stat__value {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--gray-800);
+  line-height: 1;
+}
+
+
+/* ------------------------------------------------------------
+   5. CARD + TABLE
+------------------------------------------------------------ */
+.staff-card {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+  overflow: hidden;
+}
+.staff-card__head {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--gray-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.staff-card__head h2 {
+  font-size: 1rem;
+  margin: 0;
+  color: var(--gray-800);
+}
+
+.staff-table-wrap { overflow-x: auto; }
+.staff-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  min-width: 720px;
+}
+.staff-table th {
+  text-align: left;
+  padding: 12px 20px;
+  background: var(--purple-50);
+  color: var(--purple-900);
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+.staff-table td {
+  padding: 14px 20px;
+  border-top: 1px solid var(--gray-200);
+  vertical-align: middle;
+}
+.staff-table tbody tr:hover td { background: var(--off-white); }
+.staff-table .cell-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.staff-empty {
+  padding: var(--space-5) var(--space-3);
+  text-align: center;
+  color: var(--gray-600);
+}
+.staff-empty__icon {
+  font-size: 2.5rem;
+  margin-bottom: 8px;
+}
+
+
+/* ------------------------------------------------------------
+   6. FILTER ROW
+------------------------------------------------------------ */
+.filter-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-row input,
+.filter-row select {
+  padding: 8px 12px;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-sm);
+  font-size: 0.9rem;
+  font-family: var(--font-body);
+  background: var(--white);
+  min-width: 180px;
+}
+.filter-row input:focus,
+.filter-row select:focus {
+  outline: none;
+  border-color: var(--purple-900);
+  box-shadow: 0 0 0 3px rgba(76, 29, 149, 0.12);
+}
+
+
+/* ------------------------------------------------------------
+   7. RESPONSIVE
+   ------------------------------------------------------------
+------------------------------------------------------------ */
+@media (max-width: 900px) {
+  .staff-sidebar {
+    position: static;
+    width: auto;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--gray-200);
+    padding: 8px 12px;
+    overflow-y: visible;
+  }
+  .staff-sidebar__clinic { margin-bottom: 8px; }
+
+  .staff-nav {
+    display: flex;
+    overflow-x: auto;
+    gap: 4px;
+    padding-bottom: 4px;
+  }
+  .staff-nav a {
+    white-space: nowrap;
+    margin-bottom: 0;
+  }
+  .staff-sidebar__header { display: none; }
+
+  .staff-main {
+    margin-left: 0;
+    padding: var(--space-2);
+  }
+
+  .staff-stats { grid-template-columns: repeat(2, 1fr); }
+  .staff-card__head { padding: 12px 16px; }
+  .staff-table th,
+  .staff-table td { padding: 10px 12px; }
+}
+
+@media (max-width: 480px) {
+  .staff-stats { grid-template-columns: 1fr; }
+}

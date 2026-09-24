@@ -1,0 +1,59 @@
+/* ============================================================
+   DentaBook — Clinic Detail Page
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   Breadcrumb
+------------------------------------------------------------ */
+.breadcrumb {
+  margin-bottom: var(--space-2);
+  font-size: 0.9rem;
+}
+
+.breadcrumb__sep {
+  color: var(--gray-600);
+  margin: 0 6px;
+}
+
+
+/* ------------------------------------------------------------
+   Clinic header card
+------------------------------------------------------------ */
+.clinic-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.clinic-header__icon {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  background: var(--purple-100);
+  color: var(--purple-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  flex-shrink: 0;
+}
+
+.clinic-header__info {
+  flex: 1;
+  min-width: 220px;
+}
+
+.clinic-header__name {
+  margin: 0 0 6px;
+  font-size: 1.5rem;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  color: var(--gray-800);
+}
+
+.clinic-header__info .card__meta {
+  margin: 0 0 2px;
+  font-size: 0.9rem;
+}

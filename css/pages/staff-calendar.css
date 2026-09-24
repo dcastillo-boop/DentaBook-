@@ -1,0 +1,112 @@
+/* ============================================================
+   DentaBook — Staff Calendar
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   1. GRID
+------------------------------------------------------------ */
+.cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.cal-day {
+  background: var(--white);
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  min-height: 260px;
+  overflow: hidden;
+}
+
+.cal-day__head {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--gray-200);
+  background: var(--purple-50);
+}
+.cal-day__head strong {
+  color: var(--purple-900);
+  font-size: 0.9rem;
+}
+.cal-day__head span {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--gray-600);
+}
+
+.cal-day__body {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cal-day__empty {
+  color: var(--gray-600);
+  font-size: 0.75rem;
+}
+
+
+/* ------------------------------------------------------------
+   2. APPOINTMENT BLOCKS
+------------------------------------------------------------ */
+.cal-block {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  background: var(--purple-100);
+  color: var(--purple-900);
+  border-left: 3px solid var(--purple-900);
+  cursor: pointer;
+  transition: transform 0.15s;
+}
+.cal-block:hover { transform: translateY(-1px); }
+.cal-block strong { display: block; font-size: 0.8rem; }
+.cal-block span   { color: var(--gray-600); }
+
+
+/* Status variants — reuse the tokens from styles.css */
+.cal-block.status-pending {
+  background: var(--pending-bg);
+  color: var(--pending-text);
+  border-left-color: #D97706;
+}
+.cal-block.status-confirmed {
+  background: var(--confirmed-bg);
+  color: var(--confirmed-text);
+  border-left-color: #059669;
+}
+.cal-block.status-completed {
+  background: var(--completed-bg);
+  color: var(--completed-text);
+  border-left-color: var(--purple-900);
+}
+.cal-block.status-cancelled {
+  background: var(--cancelled-bg);
+  color: var(--cancelled-text);
+  border-left-color: var(--gray-600);
+}
+.cal-block.status-rejected {
+  background: var(--rejected-bg);
+  color: var(--rejected-text);
+  border-left-color: #DC2626;
+}
+.cal-block.status-reschedule {
+  background: var(--reschedule-bg);
+  color: var(--reschedule-text);
+  border-left-color: #1E40AF;
+}
+
+
+/* ------------------------------------------------------------
+   3. RESPONSIVE
+------------------------------------------------------------ */
+@media (max-width: 1100px) {
+  .cal-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (max-width: 700px) {
+  .cal-grid { grid-template-columns: 1fr; }
+  .cal-day { min-height: auto; }
+}

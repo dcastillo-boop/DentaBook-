@@ -1,0 +1,90 @@
+/* ============================================================
+   DentaBook — OTP Verification Page
+   ============================================================ */
+
+
+/* ------------------------------------------------------------
+   Centered card layout
+------------------------------------------------------------ */
+.otp-wrap {
+  min-height: calc(100vh - 72px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4) var(--space-3);
+  background: linear-gradient(180deg, var(--purple-50), var(--white));
+}
+
+.otp-card {
+  background: var(--white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: var(--space-5) var(--space-4);
+  max-width: 460px;
+  width: 100%;
+  text-align: center;
+}
+
+.otp-card__icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto var(--space-3);
+  border-radius: 50%;
+  background: var(--purple-100);
+  color: var(--purple-900);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+
+/* ------------------------------------------------------------
+   Resend line
+------------------------------------------------------------ */
+.resend-line {
+  font-size: 0.9rem;
+  color: var(--gray-600);
+  margin-top: var(--space-2);
+}
+.resend-line a { font-weight: 600; }
+.resend-line a.is-disabled {
+  color: var(--gray-600);
+  pointer-events: none;
+  text-decoration: none;
+}
+
+
+/* ------------------------------------------------------------
+   Demo OTP banner
+------------------------------------------------------------ */
+.otp-demo {
+  background: #FEF3C7;
+  border-left: 4px solid #D97706;
+  color: #92400E;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  text-align: left;
+  margin-bottom: var(--space-3);
+}
+.otp-demo code {
+  background: var(--white);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  letter-spacing: 2px;
+}
+
+
+/* ------------------------------------------------------------
+   Responsive
+------------------------------------------------------------ */
+@media (max-width: 480px) {
+  .otp-inputs { gap: 6px; }
+  .otp-inputs input {
+    width: 42px;
+    height: 52px;
+    font-size: 1.25rem;
+  }
+  .otp-card { padding: var(--space-4) var(--space-3); }
+}

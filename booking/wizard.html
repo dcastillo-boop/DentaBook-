@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book Appointment — DentaBook</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../css/styles.css" />
+  <link rel="stylesheet" href="../css/pages/booking.css" />
+</head>
+<body>
+
+  <!-- ============================================================
+       NAVBAR
+       Session-aware actions are populated by main.js.
+       ============================================================ -->
+  <header class="navbar" id="navbar">
+    <div class="navbar__inner">
+
+      <a href="../index.html" class="navbar__logo">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3C8 3 6 5 6 8c0 2 1 3 1 5s-1 4-1 6 1 4 3 4 2-2 2-3 0-3 2-3 2 2 2 3 1 3 3 3 3-2 3-4-1-4-1-6 1-3 1-5c0-3-2-5-5-5-1 0-2 .5-2 .5S13 3 12 3z"/>
+        </svg>
+        DentaBook
+      </a>
+
+      <div class="navbar__actions">
+        <a href="../public/services.html" class="btn btn--ghost">Cancel Booking</a>
+      </div>
+
+    </div>
+  </header>
+
+
+  <!-- ============================================================
+       STEPPER
+       Rendered by renderStepper() in js/pages/booking.js
+       ============================================================ -->
+  <div class="stepper">
+    <div class="stepper__inner" id="stepper"></div>
+  </div>
+
+
+  <!-- ============================================================
+       WIZARD BODY
+       Each step is rendered inside #wizardContent by the JS file.
+       ============================================================ -->
+  <main class="wizard">
+    <div class="container" id="wizardContent"></div>
+  </main>
+
+
+  <!-- ============================================================
+       BOTTOM NAV (Back button, summary bar)
+       Hidden on step 1 (nothing to go back to) and step 7 (done).
+       ============================================================ -->
+  <div class="wizard-nav is-hidden" id="wizardNav">
+    <button class="btn btn--secondary" id="backBtn" type="button">← Back</button>
+    <div class="wizard-nav__summary" id="summaryBar"></div>
+    <span></span>
+  </div>
+
+
+  <!-- ============================================================
+       SCRIPTS
+       ============================================================ -->
+  <script src="../js/main.js"></script>
+  <script src="../js/data.js"></script>
+  <script src="../js/pages/booking.js"></script>
+
+</body>
+</html>
