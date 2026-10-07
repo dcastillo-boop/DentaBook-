@@ -12,7 +12,7 @@ Built as a school project for the frontend development course.
 Patients create an account, verify their phone via SMS OTP, browse dental
 services, pick a clinic and dentist, and request an appointment. Bookings
 are reviewed and approved by clinic staff. Confirmations are sent via SMS.
-No online payment — payment happens in person at the clinic.
+No online payment (payment happens in person at the clinic).
 
 ## How to Run
 1. Clone or download this folder.
