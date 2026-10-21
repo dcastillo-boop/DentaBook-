@@ -1,7 +1,3 @@
-/* ============================================================
-   DentaBook — Shared JavaScript (js/main.js)
-   ============================================================ */
-
 
 /* ------------------------------------------------------------
    0. PATH RESOLVER
@@ -20,20 +16,124 @@ function url(path) {
 
 
 /* ------------------------------------------------------------
-   1. NAVBAR
+   0b. SKIP LINK (accessibility)
+------------------------------------------------------------ */
+function injectSkipLink() {
+  if (document.querySelector('.skip-link')) return;
+
+  const main = document.querySelector('main');
+  if (!main) return;
+
+  if (!main.id) main.id = 'main';
+  if (!main.hasAttribute('tabindex')) main.setAttribute('tabindex', '-1');
+
+  const skip = document.createElement('a');
+  skip.href = '#main';
+  skip.className = 'skip-link';
+  skip.textContent = 'Skip to content';
+
+  skip.addEventListener('click', (e) => {
+    e.preventDefault();
+    main.focus();
+    main.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  document.body.insertBefore(skip, document.body.firstChild);
+}
+
+
+/* ------------------------------------------------------------
+   0c. API CLIENT
    ------------------------------------------------------------
+    */
+const Api = {
+  _cache: {
+    appointments: [],
+    smsLog: [],
+  },
+
+  async _fetch(path, options = {}) {
+    const res = await fetch(path, {
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      ...options,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(err.error || ('Request failed: ' + res.status));
+    }
+    return res.json();
+  },
+
+  /* ---- Appointments ---- */
+  async loadAppointments() {
+    try {
+      this._cache.appointments = await this._fetch('/api/appointments');
+    } catch (err) {
+      console.error('[Api] loadAppointments failed:', err);
+      this._cache.appointments = [];
+    }
+    window.APPOINTMENTS_CACHE = this._cache.appointments;
+    return this._cache.appointments;
+  },
+
+  async createAppointment(appointment) {
+    const created = await this._fetch('/api/appointments', {
+      method: 'POST',
+      body: JSON.stringify(appointment),
+    });
+    this._cache.appointments.push(created);
+    window.APPOINTMENTS_CACHE = this._cache.appointments;
+    return created;
+  },
+
+  async updateAppointment(id, patch) {
+    const updated = await this._fetch('/api/appointments/' + id, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    });
+    const idx = this._cache.appointments.findIndex(a => a.id === id);
+    if (idx !== -1) this._cache.appointments[idx] = updated;
+    window.APPOINTMENTS_CACHE = this._cache.appointments;
+    return updated;
+  },
+
+  /* ---- SMS Log ---- */
+  async loadSmsLog() {
+    try {
+      this._cache.smsLog = await this._fetch('/api/sms-log');
+    } catch (err) {
+      console.error('[Api] loadSmsLog failed:', err);
+      this._cache.smsLog = [];
+    }
+    return this._cache.smsLog;
+  },
+
+  async createSms(entry) {
+    const created = await this._fetch('/api/sms-log', {
+      method: 'POST',
+      body: JSON.stringify(entry),
+    });
+    this._cache.smsLog.push(created);
+    return created;
+  },
+};
+
+window.Api = Api;
+
+
+/* ------------------------------------------------------------
+   1. NAVBAR (event delegation)
 ------------------------------------------------------------ */
 function initNavbar() {
   const navbar = document.getElementById('navbar');
   if (!navbar) return;
 
   navbar.addEventListener('click', (e) => {
-    // Toggle mobile menu when the hamburger is clicked
     if (e.target.closest('.navbar__toggle')) {
       navbar.classList.toggle('is-open');
       return;
     }
-    // Auto-close menu when a nav link is clicked
     if (e.target.closest('.navbar__links a')) {
       navbar.classList.remove('is-open');
     }
@@ -52,29 +152,20 @@ function highlightActiveNav() {
 
 
 /* ------------------------------------------------------------
-   2. SESSION-AWARE NAVBAR
+   2. NAVBAR
    ------------------------------------------------------------
-   Rewrites BOTH .navbar__links and .navbar__actions based on
-   the current session role.
-
-     Guest   → Home · Services · Clinics · Patient Login · Staff Login
-     Patient → Home · Services · Clinics · My Appointments
-     Staff   → Dashboard · Appointments · Calendar · Dentists · Services · SMS Log
------------------------------------------------------------- */
+    */
 function renderNavbarAuth() {
   const linksList = document.querySelector('.navbar__links');
   const actions   = document.querySelector('.navbar__actions');
   if (!actions) return;
 
   const session = Session.get();
-
-  // Preserve the hamburger button before we replace the actions area
   const hamburgerHTML = actions.querySelector('.navbar__toggle')?.outerHTML || '';
 
-  // Body flag for staff-only CSS hooks
   document.body.classList.toggle('is-staff', session?.role === 'staff');
 
-  /* ---------- NAV LINKS ---------- */
+  /* ---- NAV LINKS ---- */
   if (linksList) {
     if (session?.role === 'staff') {
       linksList.innerHTML = `
@@ -85,7 +176,6 @@ function renderNavbarAuth() {
         <li><a href="${url('staff/services.html')}">Services</a></li>
         <li><a href="${url('staff/sms-log.html')}">SMS Log</a></li>
       `;
-
     } else if (session?.role === 'patient') {
       linksList.innerHTML = `
         <li><a href="${url('index.html')}">Home</a></li>
@@ -93,7 +183,6 @@ function renderNavbarAuth() {
         <li><a href="${url('public/clinics.html')}">Clinics</a></li>
         <li><a href="${url('patient/dashboard.html')}">My Appointments</a></li>
       `;
-
     } else {
       linksList.innerHTML = `
         <li><a href="${url('index.html')}">Home</a></li>
@@ -105,12 +194,11 @@ function renderNavbarAuth() {
     }
   }
 
-  /* ---------- ACTIONS ---------- */
+  /* ---- ACTIONS ---- */
   if (session?.role === 'patient') {
     const first = session.name?.split(' ')[0] || 'Patient';
     actions.innerHTML = `
       <span class="navbar__greeting">Hi, <strong>${first}</strong></span>
-      <a href="${url('patient/dashboard.html')}" class="btn btn--ghost btn--sm">My Appointments</a>
       <button class="btn btn--primary btn--sm" id="navLogoutBtn">Log Out</button>
       ${hamburgerHTML}
     `;
@@ -137,13 +225,16 @@ function renderNavbarAuth() {
 
 
 /* ------------------------------------------------------------
-   3. TOAST
+   3. TOAST (aria-live for screen readers)
 ------------------------------------------------------------ */
 function showToast(message, type = 'info', duration = 4000) {
   let container = document.querySelector('.toast-container');
   if (!container) {
     container = document.createElement('div');
     container.className = 'toast-container';
+    container.setAttribute('role', 'status');
+    container.setAttribute('aria-live', 'polite');
+    container.setAttribute('aria-atomic', 'true');
     document.body.appendChild(container);
   }
 
@@ -160,32 +251,72 @@ function showToast(message, type = 'info', duration = 4000) {
 
 
 /* ------------------------------------------------------------
-   4. MODAL HELPERS
+   4. MODAL HELPERS (a11y + focus trap)
 ------------------------------------------------------------ */
-function createModal(innerHtml) {
+function createModal(innerHtml, ariaLabel = 'Dialog') {
   const overlay = document.createElement('div');
   overlay.className = 'modal-overlay';
-  overlay.innerHTML = '<div class="modal-box">' + innerHtml + '</div>';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-label', ariaLabel);
+
+  overlay._previousFocus = document.activeElement;
+
+  overlay.innerHTML = '<div class="modal-box" tabindex="-1">' + innerHtml + '</div>';
   document.body.appendChild(overlay);
 
+  const box = overlay.querySelector('.modal-box');
+  box.focus();
+
+  function onKey(e) {
+    if (e.key === 'Escape') { closeModal(overlay); return; }
+    if (e.key !== 'Tab') return;
+
+    const focusable = overlay.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), ' +
+      'select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusable.length === 0) return;
+
+    const first = focusable[0];
+    const last  = focusable[focusable.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault(); last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault(); first.focus();
+    }
+  }
+  document.addEventListener('keydown', onKey);
+  overlay._onKey = onKey;
+
   overlay.addEventListener('click', (e) => {
-    if (e.target === overlay) overlay.remove();
+    if (e.target === overlay) closeModal(overlay);
   });
   overlay.querySelectorAll('[data-close]').forEach(btn => {
-    btn.addEventListener('click', () => overlay.remove());
+    btn.addEventListener('click', () => closeModal(overlay));
   });
 
   return overlay;
 }
 
 function closeModal(overlay) {
-  if (overlay) overlay.remove();
+  if (!overlay) return;
+  if (overlay._onKey) document.removeEventListener('keydown', overlay._onKey);
+
+  const previousFocus = overlay._previousFocus;
+  overlay.remove();
+
+  if (previousFocus && typeof previousFocus.focus === 'function') {
+    previousFocus.focus();
+  }
 }
 
 
 /* ------------------------------------------------------------
    5. LOCALSTORAGE DB
------------------------------------------------------------- */
+   ------------------------------------------------------------
+ */
 const DB = {
   prefix: 'dentabook_',
   get(key, fallback = null) {
@@ -255,24 +386,26 @@ function requireStaff() {
 
 
 /* ------------------------------------------------------------
-   7. SIMULATED SMS
+   7. SIMULATED SMS (async — persists to server)
 ------------------------------------------------------------ */
-function sendSms(phone, type, message) {
-  const entry = {
-    id: 'sms-' + Date.now(),
-    phone, type, message,
-    sentAt: new Date().toISOString(),
-    status: 'sent',
-  };
-  DB.push('sms_log', entry);
-  showToast(' SMS sent to ' + phone, 'info');
-  console.log('[SMS MOCK]', entry);
-  return entry;
+async function sendSms(phone, type, message) {
+  try {
+    const entry = await Api.createSms({ phone, type, message });
+    showToast('SMS sent to ' + phone, 'info');
+    return entry;
+  } catch (err) {
+    console.error('[sendSms] failed:', err);
+    showToast('SMS log failed to save (server offline?)', 'warning');
+    return null;
+  }
 }
 
 
 /* ------------------------------------------------------------
    8. SLOT GENERATOR
+   ------------------------------------------------------------
+   Reads from window.APPOINTMENTS_CACHE (populated by
+   Api.loadAppointments()).
 ------------------------------------------------------------ */
 function generateSlotsForDate(dateStr, dentistId, serviceId) {
   const service = getServiceById(serviceId);
@@ -282,8 +415,7 @@ function generateSlotsForDate(dateStr, dentistId, serviceId) {
   const start = new Date(dateStr + 'T09:00:00');
   const end   = new Date(dateStr + 'T17:00:00');
 
-  const all = [...(typeof APPOINTMENTS !== 'undefined' ? APPOINTMENTS : []),
-               ...DB.get('appointments', [])];
+  const all = window.APPOINTMENTS_CACHE || [];
   const taken = all
     .filter(a =>
       a.dentistId === dentistId &&
@@ -341,14 +473,13 @@ function getQueryParam(key) {
 
 /* ------------------------------------------------------------
    10. INIT
-   ------------------------------------------------------------
 ------------------------------------------------------------ */
 function initAll() {
+  injectSkipLink();
   initNavbar();
   renderNavbarAuth();
   highlightActiveNav();
 }
 
-// main.js is loaded at the bottom of <body>, so the DOM is
-// already parsed. Run once, immediately.
 initAll();
+document.addEventListener('DOMContentLoaded', initAll);

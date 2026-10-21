@@ -1,7 +1,7 @@
 /* ============================================================
-   DentaBook — Staff SMS Log
+   Staff SMS Log 
    ============================================================ */
-(function () {
+(async function () {
 
   if (!requireStaff()) return;
 
@@ -12,12 +12,11 @@
   document.getElementById('staffRole').textContent  = session.staffRole || 'Staff';
 
 
-  /* ============================================================
-     RENDER
-     ============================================================ */
-
-  function render() {
-    const log = DB.get('sms_log', []);
+  /* ----------------------------------------------------------
+     Render (fetches from server)
+  ---------------------------------------------------------- */
+  async function render() {
+    const log  = await Api.loadSmsLog();
     const body = document.getElementById('tableBody');
 
     if (log.length === 0) {
@@ -42,22 +41,17 @@
   }
 
 
-  /* ============================================================
-     CLEAR LOG
-     ============================================================ */
-
-  document.getElementById('clearBtn').addEventListener('click', () => {
-    if (!confirm('Clear the entire SMS log? This cannot be undone.')) return;
-    DB.set('sms_log', []);
-    showToast('SMS log cleared.', 'info');
-    render();
+  /* ----------------------------------------------------------
+     Clear button — append-only log in Milestone 2
+  ---------------------------------------------------------- */
+  document.getElementById('clearBtn')?.addEventListener('click', () => {
+    showToast('SMS log is append-only in Milestone 2.', 'info');
   });
 
 
-  /* ============================================================
-     BOOT
-     ============================================================ */
-
-  render();
+  /* ----------------------------------------------------------
+     Boot
+  ---------------------------------------------------------- */
+  await render();
 
 })();

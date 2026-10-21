@@ -1,11 +1,9 @@
 /* ============================================================
-   DentaBook — Booking Wizard
+  Booking Wizard
    ============================================================ */
+
 (function () {
 
-  /* ------------------------------------------------------------
-     Step definitions
-  ------------------------------------------------------------ */
   const STEPS = [
     { n: 1, label: 'Service' },
     { n: 2, label: 'Clinic' },
@@ -16,16 +14,10 @@
     { n: 7, label: 'Done' },
   ];
 
-  /* ------------------------------------------------------------
-     State
-  ------------------------------------------------------------ */
   let draft = DB.get('booking_draft', {});
   let currentStep = parseInt(getQueryParam('step') || '1', 10);
   if (currentStep < 1 || currentStep > 7) currentStep = 1;
 
-  /* ------------------------------------------------------------
-     DOM refs
-  ------------------------------------------------------------ */
   const stepperEl = document.getElementById('stepper');
   const contentEl = document.getElementById('wizardContent');
   const navEl     = document.getElementById('wizardNav');
@@ -33,10 +25,9 @@
   const summaryEl = document.getElementById('summaryBar');
 
 
-  /* ============================================================
-     GUARDS + NAVIGATION
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Guards
+  ---------------------------------------------------------- */
   function getEarliestIncompleteStep() {
     if (!draft.serviceId)              return 1;
     if (!draft.clinicId)               return 2;
@@ -57,31 +48,27 @@
   }
 
   function goToStep(n) {
-    const url = new URL(window.location);
-    url.searchParams.set('step', n);
-    window.location.href = url.toString();
+    const u = new URL(window.location);
+    u.searchParams.set('step', n);
+    window.location.href = u.toString();
   }
 
 
-  /* ============================================================
-     STEPPER + SUMMARY
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Stepper + summary
+  ---------------------------------------------------------- */
   function renderStepper() {
     stepperEl.innerHTML = '';
-
     STEPS.forEach((step, idx) => {
       const item = document.createElement('div');
       item.className = 'stepper__item';
       if (step.n < currentStep)   item.classList.add('is-done');
       if (step.n === currentStep) item.classList.add('is-active');
-
       item.innerHTML = `
         <div class="stepper__dot">${step.n < currentStep ? '✓' : step.n}</div>
         <div class="stepper__label">${step.label}</div>
       `;
       stepperEl.appendChild(item);
-
       if (idx < STEPS.length - 1) {
         const line = document.createElement('div');
         line.className = 'stepper__line' + (step.n < currentStep ? ' is-done' : '');
@@ -99,10 +86,9 @@
   }
 
 
-  /* ============================================================
-     STEP 1 — SERVICE
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Step 1 — Service
+  ---------------------------------------------------------- */
   function renderStep1() {
     contentEl.innerHTML = `
       <div class="wizard__title">
@@ -111,24 +97,20 @@
       </div>
       <div class="select-grid" id="grid"></div>
     `;
-
     const grid = document.getElementById('grid');
-
     SERVICES.forEach(svc => {
       const card = document.createElement('div');
       card.className = 'select-card' + (draft.serviceId === svc.id ? ' is-selected' : '');
       card.innerHTML = `
         <div class="select-card__icon">${svc.icon}</div>
         <div class="select-card__title">${svc.name}</div>
-        <div class="select-card__meta"> ${svc.duration} min · from ₱${svc.price.toLocaleString()}</div>
+        <div class="select-card__meta">${svc.duration} min · from ₱${svc.price.toLocaleString()}</div>
         <div class="select-card__meta">${svc.description}</div>
       `;
       card.addEventListener('click', () => {
         draft.serviceId = svc.id;
-        draft.clinicId = null;
-        draft.dentistId = null;
-        draft.start = null;
-        draft.end = null;
+        draft.clinicId = null; draft.dentistId = null;
+        draft.start = null; draft.end = null;
         DB.set('booking_draft', draft);
         goToStep(2);
       });
@@ -137,15 +119,13 @@
   }
 
 
-  /* ============================================================
-     STEP 2 — CLINIC
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Step 2 — Clinic
+  ---------------------------------------------------------- */
   function renderStep2() {
     const clinics = CLINICS.filter(c =>
       SERVICES.some(s => s.clinicId === c.id && s.id === draft.serviceId)
     );
-
     contentEl.innerHTML = `
       <div class="wizard__title">
         <h1>Choose a Clinic</h1>
@@ -153,23 +133,19 @@
       </div>
       <div class="select-grid" id="grid"></div>
     `;
-
     const grid = document.getElementById('grid');
-
     clinics.forEach(clinic => {
       const card = document.createElement('div');
       card.className = 'select-card' + (draft.clinicId === clinic.id ? ' is-selected' : '');
       card.innerHTML = `
         <div class="select-card__icon"></div>
         <div class="select-card__title">${clinic.name}</div>
-        <div class="select-card__meta"> ${clinic.address}</div>
-        <div class="select-card__meta"> ${clinic.hours}</div>
+        <div class="select-card__meta">${clinic.address}</div>
+        <div class="select-card__meta">${clinic.hours}</div>
       `;
       card.addEventListener('click', () => {
-        draft.clinicId = clinic.id;
-        draft.dentistId = null;
-        draft.start = null;
-        draft.end = null;
+        draft.clinicId = clinic.id; draft.dentistId = null;
+        draft.start = null; draft.end = null;
         DB.set('booking_draft', draft);
         goToStep(3);
       });
@@ -178,13 +154,11 @@
   }
 
 
-  /* ============================================================
-     STEP 3 — DENTIST
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Step 3 — Dentist
+  ---------------------------------------------------------- */
   function renderStep3() {
     const list = DENTISTS.filter(d => d.clinics.includes(draft.clinicId));
-
     contentEl.innerHTML = `
       <div class="wizard__title">
         <h1>Choose a Dentist</h1>
@@ -192,10 +166,8 @@
       </div>
       <div class="select-grid" id="grid"></div>
     `;
-
     const grid = document.getElementById('grid');
 
-    // "Any Available" option
     const anyCard = document.createElement('div');
     anyCard.className = 'select-card select-card--dashed' +
       (draft.dentistId === 'any' ? ' is-selected' : '');
@@ -205,15 +177,12 @@
       <div class="select-card__meta">The clinic will assign the first available dentist.</div>
     `;
     anyCard.addEventListener('click', () => {
-      draft.dentistId = 'any';
-      draft.start = null;
-      draft.end = null;
+      draft.dentistId = 'any'; draft.start = null; draft.end = null;
       DB.set('booking_draft', draft);
       goToStep(4);
     });
     grid.appendChild(anyCard);
 
-    // Individual dentists
     list.forEach(d => {
       const card = document.createElement('div');
       card.className = 'select-card' + (draft.dentistId === d.id ? ' is-selected' : '');
@@ -224,9 +193,7 @@
         <div class="select-card__meta">${d.bio}</div>
       `;
       card.addEventListener('click', () => {
-        draft.dentistId = d.id;
-        draft.start = null;
-        draft.end = null;
+        draft.dentistId = d.id; draft.start = null; draft.end = null;
         DB.set('booking_draft', draft);
         goToStep(4);
       });
@@ -235,16 +202,13 @@
   }
 
 
-  /* ============================================================
-     STEP 4 — DATE & TIME
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Step 4 — Date & Time (uses server cache)
+  ---------------------------------------------------------- */
   function renderStep4() {
-    // Next 14 days (starting tomorrow)
     const dates = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     for (let i = 1; i <= 14; i++) {
       const d = new Date(today);
       d.setDate(d.getDate() + i);
@@ -255,7 +219,6 @@
       });
     }
 
-    // Effective dentist for slot generation (falls back if "any")
     const effectiveDentistId = draft.dentistId === 'any'
       ? DENTISTS.find(d => d.clinics.includes(draft.clinicId))?.id
       : draft.dentistId;
@@ -279,10 +242,9 @@
       </div>
     `;
 
-    const dateList = document.getElementById('dateList');
+    const dateList  = document.getElementById('dateList');
     const slotPanel = document.getElementById('slotPanel');
 
-    // Date chips
     dates.forEach(d => {
       const chip = document.createElement('button');
       chip.className = 'date-chip' + (draft.start?.startsWith(d.iso) ? ' is-selected' : '');
@@ -296,30 +258,30 @@
       dateList.appendChild(chip);
     });
 
-    // Slot grid
     function renderSlots(dateStr) {
       const slots = generateSlotsForDate(dateStr, effectiveDentistId, draft.serviceId);
-      const groups = groupSlots(slots);
+      const groups = { Morning: [], Afternoon: [] };
+      slots.forEach(s => {
+        const h = new Date(s.start).getHours();
+        (h < 12 ? groups.Morning : groups.Afternoon).push(s);
+      });
 
       if (!slots.some(s => s.available)) {
         slotPanel.innerHTML = `
           <h3>Available Times</h3>
-          <div class="slot-empty">
-            No available slots on this date.<br/>Please pick another day.
-          </div>
+          <div class="slot-empty">No available slots on this date.<br/>Please pick another day.</div>
         `;
         return;
       }
 
       slotPanel.innerHTML = '<h3>Available Times</h3>';
-
-      ['Morning', 'Afternoon'].forEach(groupName => {
-        const groupSlots = groups[groupName];
+      ['Morning', 'Afternoon'].forEach(name => {
+        const groupSlots = groups[name];
         if (!groupSlots.length) return;
 
         const group = document.createElement('div');
         group.className = 'slot-group';
-        group.innerHTML = `<h4>${groupName}</h4>`;
+        group.innerHTML = `<h4>${name}</h4>`;
 
         const grid = document.createElement('div');
         grid.className = 'slot-grid';
@@ -349,40 +311,22 @@
 
           grid.appendChild(btn);
         });
-
         group.appendChild(grid);
         slotPanel.appendChild(group);
       });
     }
 
-    function groupSlots(slots) {
-      const out = { Morning: [], Afternoon: [] };
-      slots.forEach(s => {
-        const h = new Date(s.start).getHours();
-        (h < 12 ? out.Morning : out.Afternoon).push(s);
-      });
-      return out;
-    }
-
-    // If a date is already selected, restore slots
     if (draft.start) renderSlots(draft.start.slice(0, 10));
   }
 
 
-  /* ============================================================
-     STEP 5 — OTP VERIFICATION
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Step 5 — OTP (client-only)
+  ---------------------------------------------------------- */
   function renderStep5() {
-    // Already verified? Skip ahead.
-    if (Session.get()?.phoneVerified) {
-      goToStep(6);
-      return;
-    }
+    if (Session.get()?.phoneVerified) { goToStep(6); return; }
 
     const session = Session.get();
-
-    // Ensure a pending OTP exists
     let pending = DB.get('pending_otp');
     if (!pending || !pending.code) {
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -405,7 +349,6 @@
         <div class="otp-demo">
           <strong>Demo mode:</strong> Your OTP is <code>${pending.code}</code>
         </div>
-
         <div class="otp-inputs" id="otpInputs">
           <input type="text" inputmode="numeric" maxlength="1" />
           <input type="text" inputmode="numeric" maxlength="1" />
@@ -414,7 +357,6 @@
           <input type="text" inputmode="numeric" maxlength="1" />
           <input type="text" inputmode="numeric" maxlength="1" />
         </div>
-
         <button class="btn btn--primary btn--block btn--lg" id="verifyOtpBtn" type="button">
           Verify
         </button>
@@ -425,7 +367,6 @@
     const inputsBox = document.getElementById('otpInputs');
     const verifyBtn = document.getElementById('verifyOtpBtn');
 
-    // Auto-advance between boxes
     inputs.forEach((input, i) => {
       input.addEventListener('input', (e) => {
         const val = e.target.value.replace(/\D/g, '').slice(0, 1);
@@ -449,7 +390,6 @@
 
     function verify() {
       const entered = inputs.map(i => i.value).join('');
-
       if (entered.length !== 6) {
         showToast('Please enter all 6 digits.', 'warning');
         return;
@@ -466,7 +406,6 @@
         return;
       }
 
-      // Success — mark as verified
       const sess = Session.get();
       sess.phoneVerified = true;
       Session.set(sess);
@@ -479,16 +418,15 @@
       }
       DB.remove('pending_otp');
 
-      showToast('Phone verified! ', 'success');
+      showToast('Phone verified!', 'success');
       setTimeout(() => goToStep(6), 700);
     }
   }
 
 
-  /* ============================================================
-     STEP 6 — REVIEW + SUBMIT
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Step 6 — Review + Submit (POSTs to server)
+  ---------------------------------------------------------- */
   function renderStep6() {
     const service = getServiceById(draft.serviceId);
     const clinic  = getClinicById(draft.clinicId);
@@ -545,7 +483,7 @@
       submitBtn.disabled = !agree.checked;
     });
 
-    submitBtn.addEventListener('click', () => {
+    submitBtn.addEventListener('click', async () => {
       submitBtn.disabled = true;
       submitBtn.textContent = 'Submitting...';
 
@@ -565,7 +503,17 @@
         createdAt: new Date().toISOString(),
       };
 
-      DB.push('appointments', appointment);
+      try {
+        await Api.createAppointment(appointment);
+      } catch (err) {
+        showToast(err.message || 'Booking failed. Slot may be taken.', 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit Booking Request';
+
+        // Refresh cache so the user sees updated availability
+        await Api.loadAppointments();
+        return;
+      }
 
       sendSms(
         appointment.patientPhone,
@@ -573,7 +521,6 @@
         `Your booking request ${appointment.id} at ${clinic.name} is pending approval.`
       );
 
-      // Remember the booking for step 7, and clear the draft
       DB.set('last_booking_id', appointment.id);
       DB.remove('booking_draft');
 
@@ -582,13 +529,12 @@
   }
 
 
-  /* ============================================================
-     STEP 7 — CONFIRMATION
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Step 7 — Confirmation (reads from cache)
+  ---------------------------------------------------------- */
   function renderStep7() {
     const refId = DB.get('last_booking_id');
-    const booking = DB.get('appointments', []).find(a => a.id === refId);
+    const booking = (window.APPOINTMENTS_CACHE || []).find(a => a.id === refId);
 
     if (!booking) {
       contentEl.innerHTML = `
@@ -646,44 +592,38 @@
   }
 
 
-  /* ============================================================
-     BOTTOM NAV
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Bottom nav
+  ---------------------------------------------------------- */
   function updateNavBar() {
-    // Hidden on step 1 (nothing to go back to) and step 7 (done)
     if (currentStep === 1 || currentStep === 7) {
       navEl.classList.add('is-hidden');
       return;
     }
-
     navEl.classList.remove('is-hidden');
-
-    // Back button label reflects what the user is going back to
     backBtn.textContent =
       currentStep === 2 ? '← Change Service' :
       currentStep === 3 ? '← Change Clinic'  :
       currentStep === 4 ? '← Change Dentist' :
       '← Back';
-
     backBtn.onclick = () => goToStep(currentStep - 1);
   }
 
 
-  /* ============================================================
-     BOOT
-     ============================================================ */
-
-  function boot() {
-    // Guard: must be logged in
-    if (!Session.get()) {
-      showToast('Please log in to book an appointment.', 'warning');
+  /* ----------------------------------------------------------
+     Boot (loads server data first)
+  ---------------------------------------------------------- */
+  async function boot() {
+    if (!Session.isPatient()) {
+      showToast('Please log in as a patient to book an appointment.', 'warning');
       setTimeout(() => window.location.href = '../auth/login.html', 900);
       return;
     }
 
-    // Guard: don't jump ahead
     if (!guardStep(currentStep)) return;
+
+    // Load server appointments so slot generation is accurate
+    await Api.loadAppointments();
 
     renderStepper();
     renderSummary();
@@ -701,5 +641,4 @@
   }
 
   boot();
-
 })();

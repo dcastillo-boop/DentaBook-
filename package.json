@@ -1,0 +1,12 @@
+{
+  "name": "dentabook",
+  "version": "1.0.0",
+  "description": "DentaBook — Milestone 2 backend (Appointments + SMS Log)",
+  "main": "server/app.js",
+  "scripts": {
+    "start": "node server/app.js"
+  },
+  "dependencies": {
+    "express": "4.19.2"
+  }
+}

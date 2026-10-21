@@ -1,63 +1,31 @@
 /* ============================================================
-   DentaBook — Patient Dashboard
+   Patient Dashboard 
    ============================================================ */
-(function () {
+(async function () {
 
   if (!requirePatient()) return;
 
+  await Api.loadAppointments();
+
   const session = Session.get();
 
-  /* ------------------------------------------------------------
-     Welcome header
-  ------------------------------------------------------------ */
   const firstName = session.name?.split(' ')[0] || 'Patient';
   document.getElementById('welcomeText').textContent = `Hello, ${firstName} `;
 
 
-  /* ============================================================
-     DATA
-     ============================================================ */
-
   function getAllAppointments() {
-    const combined = [...APPOINTMENTS, ...DB.get('appointments', [])];
-    return combined
+    const cache = window.APPOINTMENTS_CACHE || [];
+    return cache
       .filter(a => a.patientId === session.userId)
       .sort((a, b) => new Date(b.start) - new Date(a.start));
   }
 
-  /**
-   * Update an appointment status. If it's only in APPOINTMENTS,
-   * copy it into DB.appointments first so the change persists.
-   */
-  function updateAppointmentStatus(apptId, newStatus, note) {
-    const stored = DB.get('appointments', []);
-    const idx = stored.findIndex(a => a.id === apptId);
-
-    if (idx !== -1) {
-      stored[idx].status = newStatus;
-      stored[idx].updatedAt = new Date().toISOString();
-      if (note) stored[idx].notes = note;
-      DB.set('appointments', stored);
-      return;
-    }
-
-    const seed = APPOINTMENTS.find(a => a.id === apptId);
-    if (seed) {
-      const updated = {
-        ...seed,
-        status: newStatus,
-        updatedAt: new Date().toISOString(),
-      };
-      if (note) updated.notes = note;
-      stored.push(updated);
-      DB.set('appointments', stored);
-    }
+  async function updateAppointmentStatus(apptId, newStatus, note) {
+    const patch = { status: newStatus, updatedAt: new Date().toISOString() };
+    if (note) patch.notes = note;
+    await Api.updateAppointment(apptId, patch);
   }
 
-
-  /* ============================================================
-     STATS
-     ============================================================ */
 
   function renderStats() {
     const list = getAllAppointments();
@@ -90,10 +58,6 @@
   }
 
 
-  /* ============================================================
-     TABS
-     ============================================================ */
-
   const TABS = [
     { key: 'all',       label: 'All' },
     { key: 'pending',   label: 'Pending' },
@@ -120,10 +84,6 @@
     });
   }
 
-
-  /* ============================================================
-     APPOINTMENT LIST
-     ============================================================ */
 
   function renderList() {
     const all = getAllAppointments();
@@ -176,9 +136,9 @@
           <div class="appt-card__icon">${service?.icon || ''}</div>
           <div class="appt-card__info">
             <h3>${service?.name || 'Service'}</h3>
-            <p class="appt-card__meta"> ${clinic?.name || 'Clinic'}</p>
-            <p class="appt-card__meta"> ${dentist?.name || 'Dentist'}</p>
-            <p class="appt-card__meta"> ${formatDateTime(a.start)}</p>
+            <p class="appt-card__meta">${clinic?.name || 'Clinic'}</p>
+            <p class="appt-card__meta">${dentist?.name || 'Dentist'}</p>
+            <p class="appt-card__meta">${formatDateTime(a.start)}</p>
             <p class="appt-card__ref">
               <span class="badge ${getStatusClass(a.status)}">${getStatusLabel(a.status)}</span>
               <span class="text-xs">Ref: ${a.id}</span>
@@ -189,7 +149,6 @@
       `;
     }).join('');
 
-    // Wire action buttons
     listEl.querySelectorAll('button[data-action]').forEach(btn => {
       btn.addEventListener('click', () => {
         const id     = btn.getAttribute('data-id');
@@ -200,10 +159,6 @@
     });
   }
 
-
-  /* ============================================================
-     CANCEL MODAL
-     ============================================================ */
 
   function openCancelModal(apptId) {
     const appt = getAllAppointments().find(a => a.id === apptId);
@@ -223,24 +178,25 @@
         <button class="btn btn--secondary" type="button" data-close>Keep Appointment</button>
         <button class="btn btn--danger" type="button" id="confirmCancelBtn">Yes, Cancel</button>
       </div>
-    `);
+    `, 'Cancel appointment');
 
-    modal.querySelector('#confirmCancelBtn').addEventListener('click', () => {
-      updateAppointmentStatus(apptId, 'cancelled', 'Patient cancelled.');
-      sendSms(session.phone, 'CANCELLED',
-        `Your appointment ${apptId} has been cancelled.`);
+    modal.querySelector('#confirmCancelBtn').addEventListener('click', async () => {
+      try {
+        await updateAppointmentStatus(apptId, 'cancelled', 'Patient cancelled.');
 
-      closeModal(modal);
-      showToast('Appointment cancelled.', 'success');
-      renderStats();
-      renderList();
+        sendSms(session.phone, 'CANCELLED',
+          `Your appointment ${apptId} has been cancelled.`);
+
+        closeModal(modal);
+        showToast('Appointment cancelled.', 'success');
+        renderStats();
+        renderList();
+      } catch (err) {
+        showToast(err.message || 'Cancel failed.', 'error');
+      }
     });
   }
 
-
-  /* ============================================================
-     RESCHEDULE MODAL
-     ============================================================ */
 
   function openRescheduleModal(apptId) {
     const appt = getAllAppointments().find(a => a.id === apptId);
@@ -248,7 +204,6 @@
 
     const service = getServiceById(appt.serviceId);
 
-    // Next 14 days starting tomorrow
     const dates = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -284,19 +239,15 @@
           Submit Request
         </button>
       </div>
-    `);
+    `, 'Reschedule appointment');
 
     const datesRow = modal.querySelector('#reschDates');
 
-    // Build date chips
     dates.forEach(d => {
       const btn = document.createElement('button');
       btn.className = 'tab';
       btn.type = 'button';
-      btn.innerHTML = `
-        <strong>${d.day}</strong><br/>
-        <span class="text-xs">${d.date}</span>
-      `;
+      btn.innerHTML = `<strong>${d.day}</strong><br/><span class="text-xs">${d.date}</span>`;
       btn.addEventListener('click', () => {
         datesRow.querySelectorAll('.tab').forEach(x => x.classList.remove('is-active'));
         btn.classList.add('is-active');
@@ -340,33 +291,33 @@
       });
     }
 
-    modal.querySelector('#submitReschBtn').addEventListener('click', () => {
+    modal.querySelector('#submitReschBtn').addEventListener('click', async () => {
       if (!chosenStart) return;
 
-      DB.push('reschedule_requests', {
-        appointmentId: apptId,
-        proposedStart: chosenStart,
-        proposedEnd:   chosenEnd,
-        status: 'pending',
-        createdAt: new Date().toISOString(),
-      });
+      try {
+        DB.push('reschedule_requests', {
+          appointmentId: apptId,
+          proposedStart: chosenStart,
+          proposedEnd:   chosenEnd,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        });
 
-      updateAppointmentStatus(apptId, 'reschedule', 'Patient requested a new time.');
+        await updateAppointmentStatus(apptId, 'reschedule', 'Patient requested a new time.');
 
-      sendSms(session.phone, 'RESCHEDULE_REQUESTED',
-        `Your reschedule request for ${apptId} has been sent to the clinic.`);
+        sendSms(session.phone, 'RESCHEDULE_REQUESTED',
+          `Your reschedule request for ${apptId} has been sent to the clinic.`);
 
-      closeModal(modal);
-      showToast('Reschedule request sent.', 'success');
-      renderStats();
-      renderList();
+        closeModal(modal);
+        showToast('Reschedule request sent.', 'success');
+        renderStats();
+        renderList();
+      } catch (err) {
+        showToast(err.message || 'Reschedule failed.', 'error');
+      }
     });
   }
 
-
-  /* ============================================================
-     BOOT
-     ============================================================ */
 
   renderStats();
   renderTabs();

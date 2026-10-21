@@ -1,9 +1,11 @@
 /* ============================================================
-   DentaBook — Staff Dashboard
+ Staff Dashboard 
    ============================================================ */
-(function () {
+(async function () {
 
   if (!requireStaff()) return;
+
+  await Api.loadAppointments();
 
   const session = Session.get();
   const clinic  = getClinicById(session.clinicId);
@@ -19,48 +21,33 @@
     });
 
 
-  /* ============================================================
-     DATA HELPERS
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Data helpers
+  ---------------------------------------------------------- */
   function getClinicAppointments() {
-    const combined = [...APPOINTMENTS, ...DB.get('appointments', [])];
-    const map = new Map();
-    combined.forEach(a => map.set(a.id, a));
-    return [...map.values()]
+    const cache = window.APPOINTMENTS_CACHE || [];
+    return cache
       .filter(a => a.clinicId === session.clinicId)
       .sort((a, b) => new Date(a.start) - new Date(b.start));
   }
 
   function getPatientName(a) {
     return a.patientName ||
-           PATIENTS.find(p => p.id === a.patientId)?.name ||
-           'Unknown Patient';
+           PATIENTS.find(p => p.id === a.patientId)?.name || 'Unknown Patient';
   }
-
   function getPatientPhone(a) {
     return a.patientPhone ||
            PATIENTS.find(p => p.id === a.patientId)?.phone || '';
   }
 
-  function updateAppointment(id, patch) {
-    const stored = DB.get('appointments', []);
-    const idx = stored.findIndex(a => a.id === id);
-    if (idx !== -1) {
-      Object.assign(stored[idx], patch);
-    } else {
-      const seed = APPOINTMENTS.find(a => a.id === id);
-      if (!seed) return;
-      stored.push({ ...seed, ...patch });
-    }
-    DB.set('appointments', stored);
+  async function updateAppointment(id, patch) {
+    await Api.updateAppointment(id, patch);
   }
 
 
-  /* ============================================================
-     STATS
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Stats
+  ---------------------------------------------------------- */
   function renderStats() {
     const list = getClinicAppointments();
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -88,17 +75,15 @@
   }
 
 
-  /* ============================================================
-     PENDING APPROVALS
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Pending approvals
+  ---------------------------------------------------------- */
   function renderPending() {
     const list = getClinicAppointments().filter(a => a.status === 'pending');
     document.getElementById('pendingCount').textContent =
       list.length === 0 ? '' : `${list.length} awaiting action`;
 
     const body = document.getElementById('pendingBody');
-
     if (list.length === 0) {
       body.innerHTML = `<tr><td colspan="5" class="staff-empty">
         <div class="staff-empty__icon"></div>
@@ -112,7 +97,6 @@
       const dentist = a.dentistId === 'any'
         ? { name: 'Any Available' }
         : getDentistById(a.dentistId);
-
       return `
         <tr>
           <td><strong class="text-purple">${a.id}</strong></td>
@@ -145,55 +129,62 @@
     });
   }
 
-  function handleApprove(id) {
+  async function handleApprove(id) {
     const appt = getClinicAppointments().find(a => a.id === id);
     if (!appt) return;
     if (!confirm(`Approve booking ${id}?`)) return;
 
-    updateAppointment(id, {
-      status: 'confirmed',
-      approvedBy: session.userId,
-      approvedAt: new Date().toISOString(),
-    });
+    try {
+      await updateAppointment(id, {
+        status: 'confirmed',
+        approvedBy: session.userId,
+        approvedAt: new Date().toISOString(),
+      });
 
-    sendSms(
-      getPatientPhone(appt),
-      'BOOKING_APPROVED',
-      `Your appointment ${id} at ${clinic.name} is confirmed for ${formatDateTime(appt.start)}.`
-    );
+      sendSms(
+        getPatientPhone(appt),
+        'BOOKING_APPROVED',
+        `Your appointment ${id} at ${clinic.name} is confirmed for ${formatDateTime(appt.start)}.`
+      );
 
-    showToast(`Booking ${id} approved.`, 'success');
-    refresh();
+      showToast(`Booking ${id} approved.`, 'success');
+      refresh();
+    } catch (err) {
+      showToast(err.message || 'Approve failed.', 'error');
+    }
   }
 
-  function handleReject(id) {
+  async function handleReject(id) {
     const appt = getClinicAppointments().find(a => a.id === id);
     if (!appt) return;
 
     const reason = prompt('Reason for rejection (optional):', '');
     if (reason === null) return;
 
-    updateAppointment(id, {
-      status: 'rejected',
-      notes: reason || 'Rejected by staff.',
-      updatedAt: new Date().toISOString(),
-    });
+    try {
+      await updateAppointment(id, {
+        status: 'rejected',
+        notes: reason || 'Rejected by staff.',
+        updatedAt: new Date().toISOString(),
+      });
 
-    sendSms(
-      getPatientPhone(appt),
-      'BOOKING_REJECTED',
-      `Your booking ${id} was not approved. Please rebook or contact ${clinic.name}.`
-    );
+      sendSms(
+        getPatientPhone(appt),
+        'BOOKING_REJECTED',
+        `Your booking ${id} was not approved. Please rebook or contact ${clinic.name}.`
+      );
 
-    showToast(`Booking ${id} rejected.`, 'warning');
-    refresh();
+      showToast(`Booking ${id} rejected.`, 'warning');
+      refresh();
+    } catch (err) {
+      showToast(err.message || 'Reject failed.', 'error');
+    }
   }
 
 
-  /* ============================================================
-     TODAY'S APPOINTMENTS
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Today
+  ---------------------------------------------------------- */
   function renderToday() {
     const todayStr = new Date().toISOString().slice(0, 10);
     const list = getClinicAppointments().filter(a =>
@@ -202,7 +193,6 @@
     );
 
     const body = document.getElementById('todayBody');
-
     if (list.length === 0) {
       body.innerHTML = `<tr><td colspan="5" class="staff-empty">
         <div class="staff-empty__icon"></div>
@@ -219,32 +209,31 @@
       const time = new Date(a.start).toLocaleTimeString('en-PH', {
         hour: 'numeric', minute: '2-digit', hour12: true,
       });
-
       return `
         <tr>
           <td><strong>${time}</strong></td>
           <td>${getPatientName(a)}</td>
           <td>${service?.name || '—'}</td>
           <td>${dentist?.name}</td>
-          <td>
-            <span class="badge ${getStatusClass(a.status)}">${getStatusLabel(a.status)}</span>
-          </td>
+          <td><span class="badge ${getStatusClass(a.status)}">${getStatusLabel(a.status)}</span></td>
         </tr>
       `;
     }).join('');
   }
 
 
-  /* ============================================================
-     REFRESH + BOOT
-     ============================================================ */
-
-  function refresh() {
+  /* ----------------------------------------------------------
+     Refresh
+  ---------------------------------------------------------- */
+  async function refresh() {
+    await Api.loadAppointments();
     renderStats();
     renderPending();
     renderToday();
   }
 
-  refresh();
+  renderStats();
+  renderPending();
+  renderToday();
 
 })();

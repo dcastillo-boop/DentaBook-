@@ -1,9 +1,11 @@
 /* ============================================================
-   DentaBook — Staff Appointments List
+   Staff Appointments List 
    ============================================================ */
-(function () {
+(async function () {
 
   if (!requireStaff()) return;
+
+  await Api.loadAppointments();
 
   const session = Session.get();
   const clinic  = getClinicById(session.clinicId);
@@ -12,15 +14,12 @@
   document.getElementById('staffRole').textContent  = session.staffRole || 'Staff';
 
 
-  /* ============================================================
-     DATA HELPERS
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Data helpers
+  ---------------------------------------------------------- */
   function getClinicAppointments() {
-    const combined = [...APPOINTMENTS, ...DB.get('appointments', [])];
-    const map = new Map();
-    combined.forEach(a => map.set(a.id, a));
-    return [...map.values()]
+    const cache = window.APPOINTMENTS_CACHE || [];
+    return cache
       .filter(a => a.clinicId === session.clinicId)
       .sort((a, b) => new Date(b.start) - new Date(a.start));
   }
@@ -29,30 +28,19 @@
     return a.patientName ||
            PATIENTS.find(p => p.id === a.patientId)?.name || 'Unknown';
   }
-
   function getPatientPhone(a) {
     return a.patientPhone ||
            PATIENTS.find(p => p.id === a.patientId)?.phone || '';
   }
 
-  function updateAppointment(id, patch) {
-    const stored = DB.get('appointments', []);
-    const idx = stored.findIndex(a => a.id === id);
-    if (idx !== -1) {
-      Object.assign(stored[idx], patch);
-    } else {
-      const seed = APPOINTMENTS.find(a => a.id === id);
-      if (!seed) return;
-      stored.push({ ...seed, ...patch });
-    }
-    DB.set('appointments', stored);
+  async function updateAppointment(id, patch) {
+    await Api.updateAppointment(id, patch);
   }
 
 
-  /* ============================================================
-     FILTERS
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Filters
+  ---------------------------------------------------------- */
   const searchInput   = document.getElementById('searchInput');
   const statusFilter  = document.getElementById('statusFilter');
   const dentistFilter = document.getElementById('dentistFilter');
@@ -70,10 +58,9 @@
     el.addEventListener('input', render));
 
 
-  /* ============================================================
-     RENDER
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Render
+  ---------------------------------------------------------- */
   function render() {
     const q          = searchInput.value.toLowerCase().trim();
     const statusVal  = statusFilter.value;
@@ -87,13 +74,11 @@
         getPatientName(a).toLowerCase().includes(q)
       );
     }
-
     if (statusVal === 'cancelled') {
       list = list.filter(a => ['cancelled', 'rejected'].includes(a.status));
     } else if (statusVal) {
       list = list.filter(a => a.status === statusVal);
     }
-
     if (dentistVal) {
       list = list.filter(a => a.dentistId === dentistVal);
     }
@@ -102,7 +87,6 @@
       `${list.length} appointment${list.length === 1 ? '' : 's'}`;
 
     const body = document.getElementById('tableBody');
-
     if (list.length === 0) {
       body.innerHTML = `<tr><td colspan="7" class="staff-empty">
         <div class="staff-empty__icon"></div>
@@ -116,7 +100,6 @@
       const dentist = a.dentistId === 'any'
         ? { name: 'Any Available' }
         : getDentistById(a.dentistId);
-
       return `
         <tr>
           <td><strong class="text-purple text-sm">${a.id}</strong></td>
@@ -127,9 +110,7 @@
           <td>${service?.name || '—'}</td>
           <td>${dentist?.name || '—'}</td>
           <td>${formatDateTime(a.start)}</td>
-          <td>
-            <span class="badge ${getStatusClass(a.status)}">${getStatusLabel(a.status)}</span>
-          </td>
+          <td><span class="badge ${getStatusClass(a.status)}">${getStatusLabel(a.status)}</span></td>
           <td><div class="cell-actions">${buildActions(a)}</div></td>
         </tr>
       `;
@@ -168,137 +149,144 @@
   }
 
 
-  /* ============================================================
-     ACTION HANDLERS
-     ============================================================ */
-
-  function handleAction(action, id) {
+  /* ----------------------------------------------------------
+     Action handlers
+  ---------------------------------------------------------- */
+  async function handleAction(action, id) {
     const appt = getClinicAppointments().find(a => a.id === id);
     if (!appt) return;
 
-    switch (action) {
-      case 'approve': {
-        if (!confirm(`Approve ${id}?`)) return;
-        updateAppointment(id, {
-          status: 'confirmed',
-          approvedBy: session.userId,
-          approvedAt: new Date().toISOString(),
-        });
-        sendSms(getPatientPhone(appt), 'BOOKING_APPROVED',
-          `Your appointment ${id} is confirmed for ${formatDateTime(appt.start)}.`);
-        showToast(`${id} approved.`, 'success');
-        break;
-      }
-
-      case 'reject': {
-        const reason = prompt('Reason (optional):', '');
-        if (reason === null) return;
-        updateAppointment(id, {
-          status: 'rejected',
-          notes: reason || 'Rejected by staff.',
-          updatedAt: new Date().toISOString(),
-        });
-        sendSms(getPatientPhone(appt), 'BOOKING_REJECTED',
-          `Your booking ${id} was not approved. Please rebook or contact the clinic.`);
-        showToast(`${id} rejected.`, 'warning');
-        break;
-      }
-
-      case 'complete': {
-        if (!confirm(`Mark ${id} as completed?`)) return;
-        updateAppointment(id, {
-          status: 'completed',
-          updatedAt: new Date().toISOString(),
-        });
-        showToast(`${id} marked completed.`, 'success');
-        break;
-      }
-
-      case 'noshow': {
-        if (!confirm(`Mark ${id} as no-show?`)) return;
-        updateAppointment(id, {
-          status: 'no-show',
-          updatedAt: new Date().toISOString(),
-        });
-        sendSms(getPatientPhone(appt), 'NO_SHOW',
-          `You missed your appointment ${id}. Please contact the clinic.`);
-        showToast(`${id} marked no-show.`, 'warning');
-        break;
-      }
-
-      case 'reschedule': {
-        const newDate = prompt('Enter new date (YYYY-MM-DD):');
-        if (!newDate) return;
-
-        const service = getServiceById(appt.serviceId);
-        const slots = generateSlotsForDate(newDate, appt.dentistId, service.id);
-        const slot = slots.find(s => s.available);
-
-        if (!slot) {
-          showToast('No slots on that date.', 'warning');
-          return;
+    try {
+      switch (action) {
+        case 'approve': {
+          if (!confirm(`Approve ${id}?`)) return;
+          await updateAppointment(id, {
+            status: 'confirmed',
+            approvedBy: session.userId,
+            approvedAt: new Date().toISOString(),
+          });
+          sendSms(getPatientPhone(appt), 'BOOKING_APPROVED',
+            `Your appointment ${id} is confirmed for ${formatDateTime(appt.start)}.`);
+          showToast(`${id} approved.`, 'success');
+          break;
         }
 
-        updateAppointment(id, {
-          start: slot.start,
-          end: slot.end,
-          status: 'confirmed',
-          updatedAt: new Date().toISOString(),
-        });
-        sendSms(getPatientPhone(appt), 'RESCHEDULED',
-          `Your appointment ${id} has been moved to ${formatDateTime(slot.start)}.`);
-        showToast(`${id} rescheduled.`, 'success');
-        break;
-      }
-
-      case 'approveResch': {
-        const reqs = DB.get('reschedule_requests', []);
-        const req = reqs.find(r => r.appointmentId === id && r.status === 'pending');
-        if (!req) {
-          showToast('No pending reschedule request found.', 'warning');
-          return;
+        case 'reject': {
+          const reason = prompt('Reason (optional):', '');
+          if (reason === null) return;
+          await updateAppointment(id, {
+            status: 'rejected',
+            notes: reason || 'Rejected by staff.',
+            updatedAt: new Date().toISOString(),
+          });
+          sendSms(getPatientPhone(appt), 'BOOKING_REJECTED',
+            `Your booking ${id} was not approved. Please rebook or contact the clinic.`);
+          showToast(`${id} rejected.`, 'warning');
+          break;
         }
 
-        updateAppointment(id, {
-          start: req.proposedStart,
-          end: req.proposedEnd,
-          status: 'confirmed',
-          updatedAt: new Date().toISOString(),
-        });
-        req.status = 'approved';
-        DB.set('reschedule_requests', reqs);
-
-        sendSms(getPatientPhone(appt), 'RESCHEDULE_APPROVED',
-          `Your reschedule request for ${id} is approved. New time: ${formatDateTime(req.proposedStart)}.`);
-        showToast('Reschedule approved.', 'success');
-        break;
-      }
-
-      case 'rejectResch': {
-        const reqs = DB.get('reschedule_requests', []);
-        const req = reqs.find(r => r.appointmentId === id && r.status === 'pending');
-        if (!req) {
-          showToast('No pending reschedule request found.', 'warning');
-          return;
+        case 'complete': {
+          if (!confirm(`Mark ${id} as completed?`)) return;
+          await updateAppointment(id, {
+            status: 'completed',
+            updatedAt: new Date().toISOString(),
+          });
+          showToast(`${id} marked completed.`, 'success');
+          break;
         }
-        req.status = 'rejected';
-        DB.set('reschedule_requests', reqs);
 
-        updateAppointment(id, {
-          status: 'confirmed',
-          updatedAt: new Date().toISOString(),
-        });
-        sendSms(getPatientPhone(appt), 'RESCHEDULE_REJECTED',
-          `Your reschedule request for ${id} was rejected. Original time kept.`);
-        showToast('Reschedule request rejected.', 'warning');
-        break;
+        case 'noshow': {
+          if (!confirm(`Mark ${id} as no-show?`)) return;
+          await updateAppointment(id, {
+            status: 'no-show',
+            updatedAt: new Date().toISOString(),
+          });
+          sendSms(getPatientPhone(appt), 'NO_SHOW',
+            `You missed your appointment ${id}. Please contact the clinic.`);
+          showToast(`${id} marked no-show.`, 'warning');
+          break;
+        }
+
+        case 'reschedule': {
+          const newDate = prompt('Enter new date (YYYY-MM-DD):');
+          if (!newDate) return;
+
+          const service = getServiceById(appt.serviceId);
+          const slots = generateSlotsForDate(newDate, appt.dentistId, service.id);
+          const slot = slots.find(s => s.available);
+
+          if (!slot) {
+            showToast('No slots on that date.', 'warning');
+            return;
+          }
+
+          await updateAppointment(id, {
+            start: slot.start,
+            end: slot.end,
+            status: 'confirmed',
+            updatedAt: new Date().toISOString(),
+          });
+          sendSms(getPatientPhone(appt), 'RESCHEDULED',
+            `Your appointment ${id} has been moved to ${formatDateTime(slot.start)}.`);
+          showToast(`${id} rescheduled.`, 'success');
+          break;
+        }
+
+        case 'approveResch': {
+          const reqs = DB.get('reschedule_requests', []);
+          const req = reqs.find(r => r.appointmentId === id && r.status === 'pending');
+          if (!req) {
+            showToast('No pending reschedule request found.', 'warning');
+            return;
+          }
+
+          await updateAppointment(id, {
+            start: req.proposedStart,
+            end: req.proposedEnd,
+            status: 'confirmed',
+            updatedAt: new Date().toISOString(),
+          });
+          req.status = 'approved';
+          DB.set('reschedule_requests', reqs);
+          sendSms(getPatientPhone(appt), 'RESCHEDULE_APPROVED',
+            `Your reschedule request for ${id} is approved. New time: ${formatDateTime(req.proposedStart)}.`);
+          showToast('Reschedule approved.', 'success');
+          break;
+        }
+
+        case 'rejectResch': {
+          const reqs = DB.get('reschedule_requests', []);
+          const req = reqs.find(r => r.appointmentId === id && r.status === 'pending');
+          if (!req) {
+            showToast('No pending reschedule request found.', 'warning');
+            return;
+          }
+          req.status = 'rejected';
+          DB.set('reschedule_requests', reqs);
+
+          await updateAppointment(id, {
+            status: 'confirmed',
+            updatedAt: new Date().toISOString(),
+          });
+          sendSms(getPatientPhone(appt), 'RESCHEDULE_REJECTED',
+            `Your reschedule request for ${id} was rejected. Original time kept.`);
+          showToast('Reschedule request rejected.', 'warning');
+          break;
+        }
       }
+
+      // Reload from server so the table reflects any changes
+      await Api.loadAppointments();
+      render();
+    } catch (err) {
+      showToast(err.message || 'Action failed.', 'error');
     }
-
-    render();
   }
 
 
+  /* ----------------------------------------------------------
+     Boot
+  ---------------------------------------------------------- */
   render();
 
 })();

@@ -1,32 +1,22 @@
 /* ============================================================
-   DentaBook — Patient Appointment Detail
+   Patient Appointment Detail 
    ============================================================ */
-(function () {
+(async function () {
 
   if (!requirePatient()) return;
 
-  const session = Session.get();
+  await Api.loadAppointments();
 
-  /* ------------------------------------------------------------
-     Read appointment ID from URL
-  ------------------------------------------------------------ */
-  const apptId = getQueryParam('id');
+  const session = Session.get();
+  const apptId  = getQueryParam('id');
+
   if (!apptId) {
     showToast('No appointment selected.', 'warning');
     setTimeout(() => window.location.href = 'dashboard.html', 700);
     return;
   }
 
-  /* ------------------------------------------------------------
-     Find the appointment (DB first, then seed)
-  ------------------------------------------------------------ */
-  function findAppt(id) {
-    const stored = DB.get('appointments', []);
-    return stored.find(a => a.id === id) ||
-           APPOINTMENTS.find(a => a.id === id);
-  }
-
-  const appt = findAppt(apptId);
+  const appt = (window.APPOINTMENTS_CACHE || []).find(a => a.id === apptId);
 
   if (!appt || appt.patientId !== session.userId) {
     showToast('Appointment not found.', 'error');
@@ -35,10 +25,9 @@
   }
 
 
-  /* ============================================================
-     RENDER
-     ============================================================ */
-
+  /* ----------------------------------------------------------
+     Render
+  ---------------------------------------------------------- */
   function render() {
     const service = getServiceById(appt.serviceId);
     const clinic  = getClinicById(appt.clinicId);
@@ -49,9 +38,7 @@
     const hoursUntil = (new Date(appt.start).getTime() - Date.now()) / 3600000;
     const canActNow  = hoursUntil > 24;
 
-    /* ---------- Actions based on status ---------- */
     let actions = '';
-
     if (appt.status === 'pending') {
       actions = `
         <button class="btn btn--danger btn--block" type="button" id="cancelBtn">
@@ -74,19 +61,18 @@
     } else if (appt.status === 'confirmed' && !canActNow) {
       actions = `
         <div class="info-note">
-           Your appointment is less than 24 hours away.
+          Your appointment is less than 24 hours away.
           Please contact the clinic directly to make changes.
         </div>
       `;
     } else if (appt.status === 'reschedule') {
       actions = `
         <div class="info-note">
-          ⏳ Your reschedule request is pending staff approval.
+          Your reschedule request is pending staff approval.
         </div>
       `;
     }
 
-    /* ---------- Timeline ---------- */
     const timeline = [
       {
         label: 'Booking Created',
@@ -107,8 +93,6 @@
       </p>
 
       <div class="detail-layout">
-
-        <!-- LEFT COLUMN -->
         <div>
           <div class="detail-card">
             <div class="detail-card__head">
@@ -120,30 +104,13 @@
             <p class="detail-card__ref">Booking Ref: ${appt.id}</p>
 
             <dl class="row-list">
-              <div class="row-list__item">
-                <dt>Clinic</dt><dd>${clinic.name}</dd>
-              </div>
-              <div class="row-list__item">
-                <dt>Address</dt><dd>${clinic.address}</dd>
-              </div>
-              <div class="row-list__item">
-                <dt>Dentist</dt><dd>${dentist.name}</dd>
-              </div>
-              <div class="row-list__item">
-                <dt>Date &amp; Time</dt><dd>${formatDateTime(appt.start)}</dd>
-              </div>
-              <div class="row-list__item">
-                <dt>Duration</dt><dd>${service?.duration} minutes</dd>
-              </div>
-              <div class="row-list__item">
-                <dt>Estimated Fee</dt>
-                <dd>₱${service?.price.toLocaleString()} (pay in person)</dd>
-              </div>
-              ${appt.notes ? `
-                <div class="row-list__item">
-                  <dt>Notes</dt><dd>${appt.notes}</dd>
-                </div>
-              ` : ''}
+              <div class="row-list__item"><dt>Clinic</dt><dd>${clinic.name}</dd></div>
+              <div class="row-list__item"><dt>Address</dt><dd>${clinic.address}</dd></div>
+              <div class="row-list__item"><dt>Dentist</dt><dd>${dentist.name}</dd></div>
+              <div class="row-list__item"><dt>Date &amp; Time</dt><dd>${formatDateTime(appt.start)}</dd></div>
+              <div class="row-list__item"><dt>Duration</dt><dd>${service?.duration} minutes</dd></div>
+              <div class="row-list__item"><dt>Estimated Fee</dt><dd>₱${service?.price.toLocaleString()} (pay in person)</dd></div>
+              ${appt.notes ? `<div class="row-list__item"><dt>Notes</dt><dd>${appt.notes}</dd></div>` : ''}
             </dl>
           </div>
 
@@ -161,7 +128,6 @@
           </div>
         </div>
 
-        <!-- RIGHT COLUMN -->
         <aside>
           <div class="detail-card">
             <h2>Actions</h2>
@@ -173,38 +139,36 @@
           <div class="detail-card clinic-contact">
             <h2>Clinic Contact</h2>
             <p>${clinic.name}</p>
-            <p> ${clinic.phone}</p>
-            <p> ${clinic.hours}</p>
+            <p>${clinic.phone}</p>
+            <p>${clinic.hours}</p>
           </div>
         </aside>
-
       </div>
     `;
 
-    // Wire buttons
-    const cancelBtn = document.getElementById('cancelBtn');
-    const reschedBtn = document.getElementById('reschedBtn');
-    if (cancelBtn)  cancelBtn.addEventListener('click', handleCancel);
-    if (reschedBtn) reschedBtn.addEventListener('click', handleReschedule);
+    document.getElementById('cancelBtn')?.addEventListener('click', handleCancel);
+    document.getElementById('reschedBtn')?.addEventListener('click', handleReschedule);
   }
 
 
-  /* ============================================================
-     ACTION HANDLERS
-     ============================================================ */
-
-  function handleCancel() {
+  /* ----------------------------------------------------------
+     Actions
+  ---------------------------------------------------------- */
+  async function handleCancel() {
     if (!confirm('Cancel this appointment?')) return;
 
-    updateStatus('cancelled', 'Cancelled by patient.');
-    sendSms(session.phone, 'CANCELLED',
-      `Your appointment ${appt.id} has been cancelled.`);
-
-    showToast('Appointment cancelled.', 'success');
-    setTimeout(render, 300);
+    try {
+      await updateStatus('cancelled', 'Cancelled by patient.');
+      sendSms(session.phone, 'CANCELLED',
+        `Your appointment ${appt.id} has been cancelled.`);
+      showToast('Appointment cancelled.', 'success');
+      setTimeout(render, 300);
+    } catch (err) {
+      showToast(err.message || 'Cancel failed.', 'error');
+    }
   }
 
-  function handleReschedule() {
+  async function handleReschedule() {
     const newDate = prompt('Enter new date (YYYY-MM-DD):');
     if (!newDate) return;
 
@@ -217,55 +181,42 @@
       return;
     }
 
-    DB.push('reschedule_requests', {
-      appointmentId: appt.id,
-      proposedStart: slot.start,
-      proposedEnd:   slot.end,
-      status: 'pending',
-      createdAt: new Date().toISOString(),
-    });
+    try {
+      await updateStatus('reschedule', 'Patient requested a new time.');
 
-    updateStatus('reschedule', 'Patient requested a new time.');
-    sendSms(session.phone, 'RESCHEDULE_REQUESTED',
-      `Your reschedule request for ${appt.id} has been sent.`);
+      DB.push('reschedule_requests', {
+        appointmentId: appt.id,
+        proposedStart: slot.start,
+        proposedEnd:   slot.end,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      });
 
-    showToast('Reschedule request submitted.', 'success');
-    setTimeout(render, 300);
-  }
+      sendSms(session.phone, 'RESCHEDULE_REQUESTED',
+        `Your reschedule request for ${appt.id} has been sent.`);
 
-
-  /* ============================================================
-     HELPERS
-     ============================================================ */
-
-  function updateStatus(newStatus, note) {
-    const stored = DB.get('appointments', []);
-    const idx = stored.findIndex(a => a.id === appt.id);
-
-    const patch = {
-      status: newStatus,
-      updatedAt: new Date().toISOString(),
-    };
-    if (note) patch.notes = note;
-
-    if (idx !== -1) {
-      Object.assign(stored[idx], patch);
-      DB.set('appointments', stored);
-    } else {
-      // Copy the seed appointment into DB so the change persists
-      stored.push({ ...appt, ...patch });
-      DB.set('appointments', stored);
+      showToast('Reschedule request submitted.', 'success');
+      setTimeout(render, 300);
+    } catch (err) {
+      showToast(err.message || 'Reschedule failed.', 'error');
     }
-
-    // Update local reference so re-render shows fresh status
-    Object.assign(appt, patch);
   }
 
 
-  /* ============================================================
-     BOOT
-     ============================================================ */
+  /* ----------------------------------------------------------
+     Helpers
+  ---------------------------------------------------------- */
+  async function updateStatus(newStatus, note) {
+    const patch = { status: newStatus, updatedAt: new Date().toISOString() };
+    if (note) patch.notes = note;
+    const updated = await Api.updateAppointment(appt.id, patch);
+    Object.assign(appt, updated);
+  }
 
+
+  /* ----------------------------------------------------------
+     Boot
+  ---------------------------------------------------------- */
   render();
 
 })();

@@ -856,3 +856,81 @@ img { max-width: 100%; display: block; }
   .footer__grid { grid-template-columns: 1fr; }
   .cta-banner { padding: var(--space-4) var(--space-3); }
 }
+
+/* ------------------------------------------------------------
+   22. SKIP LINK (accessibility)
+   ------------------------------------------------------------
+   */
+.skip-link {
+  position: absolute;
+  top: -100px;
+  left: 16px;
+  z-index: 9999;
+  background: var(--purple-900);
+  color: var(--white);
+  padding: 12px 20px;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-decoration: none;
+  transition: top 0.2s ease;
+}
+.skip-link:focus {
+  top: 0;
+  color: var(--white);
+}
+
+/* ------------------------------------------------------------
+   23. FOCUS VISIBLE
+   ------------------------------------------------------------
+*/
+
+:focus { outline: none; }
+
+.btn:focus-visible,
+.navbar__logo:focus-visible,
+.navbar__toggle:focus-visible,
+.navbar__links a:focus-visible,
+.footer a:focus-visible,
+.tab:focus-visible,
+.date-chip:focus-visible,
+.slot-btn:focus-visible,
+.select-card:focus-visible,
+a:not(.btn):focus-visible {
+  outline: 2px solid var(--purple-900);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.form-control:focus-visible,
+.otp-inputs input:focus-visible {
+  outline: 2px solid var(--purple-900);
+  outline-offset: 1px;
+}
+
+  /* ---- Mobile touch targets (WCAG 2.1 AA: 44x44 min) ---- */
+  .btn--sm {
+    min-height: 44px;
+    padding: 10px 16px;
+  }
+
+  .tab {
+    min-height: 44px;
+    padding: 12px 16px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .navbar__links a {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+
+  .date-chip {
+    min-height: 44px;
+  }
+
+  .slot-btn {
+    min-height: 44px;
+  }

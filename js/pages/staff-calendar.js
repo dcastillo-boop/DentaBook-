@@ -1,20 +1,17 @@
 /* ============================================================
-   DentaBook — Staff Calendar
+   Staff Calendar 
    ============================================================ */
-(function () {
+(async function () {
 
   if (!requireStaff()) return;
+
+  await Api.loadAppointments();
 
   const session = Session.get();
   const clinic  = getClinicById(session.clinicId);
 
   document.getElementById('clinicName').textContent = clinic?.name || 'Clinic';
   document.getElementById('staffRole').textContent  = session.staffRole || 'Staff';
-
-
-  /* ============================================================
-     BUILD 7-DAY RANGE (today + next 6)
-     ============================================================ */
 
   const days = [];
   const base = new Date();
@@ -31,20 +28,8 @@
     `${first.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })} – ` +
     `${last.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 
-
-  /* ============================================================
-     LOAD APPOINTMENTS FOR THIS CLINIC
-     ============================================================ */
-
-  const combined = [...APPOINTMENTS, ...DB.get('appointments', [])];
-  const map = new Map();
-  combined.forEach(a => map.set(a.id, a));
-  const all = [...map.values()].filter(a => a.clinicId === session.clinicId);
-
-
-  /* ============================================================
-     RENDER
-     ============================================================ */
+  const all = (window.APPOINTMENTS_CACHE || [])
+    .filter(a => a.clinicId === session.clinicId);
 
   const grid = document.getElementById('calGrid');
 
@@ -65,7 +50,6 @@
     `;
 
     const body = col.querySelector('.cal-day__body');
-
     if (items.length === 0) {
       body.innerHTML = `<span class="cal-day__empty">No appointments</span>`;
     } else {
