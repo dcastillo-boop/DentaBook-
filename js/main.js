@@ -481,5 +481,8 @@ function initAll() {
   highlightActiveNav();
 }
 
-initAll();
-document.addEventListener('DOMContentLoaded', initAll);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAll, { once: true });
+} else {
+  initAll();
+}
